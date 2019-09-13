@@ -32,16 +32,27 @@ func escape(text string) string {
 	return text
 }
 
+var optOutCache = make(map[int]bool) // true = opt out, false = opt in
+
 func userOptedOut(user *tgbotapi.User) bool {
+	if optedOut, ok := optOutCache[user.ID]; ok {
+		return optedOut
+	}
+
 	var count int
 	db.Model(&User{}).Where(&User{TelegramID: user.ID, OptedOut: true}).Count(&count)
-	return count > 0
+
+	optedOut := count > 0
+	optOutCache[user.ID] = optedOut
+
+	return optedOut
 }
 
 func optUser(user *tgbotapi.User, in bool) {
 	var dbUser User
 	db.FirstOrCreate(&dbUser, &User{TelegramID: user.ID})
 
+	optOutCache[user.ID] = !in
 	dbUser.OptedOut = !in
 	db.Save(&dbUser)
 }
